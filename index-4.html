@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>키워드 가격 보드</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #ffffff; --bg-2: #f5f5f3; --bg-3: #ededeb;
+      --text: #1a1a18; --text-2: #6b6b67; --text-3: #9b9b97;
+      --border: rgba(0,0,0,0.11); --border-2: rgba(0,0,0,0.20);
+      --accent: #1a6fb5; --green: #2a7d4f; --red: #c0392b;
+      --r-md: 8px; --r-lg: 12px;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg:#1c1c1a; --bg-2:#272725; --bg-3:#313130;
+        --text:#f0efe8; --text-2:#a8a8a4; --text-3:#6b6b67;
+        --border:rgba(255,255,255,0.09); --border-2:rgba(255,255,255,0.18);
+        --accent:#5aabf0; --green:#4caf80; --red:#e57373;
+      }
+    }
+    body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; background:var(--bg-3); color:var(--text); min-height:100vh; padding:2rem 1rem; }
+    .container { max-width:900px; margin:0 auto; }
+    h1 { font-size:22px; font-weight:500; margin-bottom:4px; }
+    .subtitle { font-size:14px; color:var(--text-2); margin-bottom:1.5rem; }
+    .card { background:var(--bg); border:0.5px solid var(--border); border-radius:var(--r-lg); padding:1.25rem; margin-bottom:1rem; }
+    .label { font-size:11px; font-weight:500; text-transform:uppercase; letter-spacing:.06em; color:var(--text-2); margin-bottom:10px; }
+    .row { display:flex; gap:8px; margin-bottom:8px; }
+    input[type=text], input[type=password] {
+      flex:1; background:var(--bg-2); border:0.5px solid var(--border); border-radius:var(--r-md);
+      padding:8px 12px; font-size:14px; color:var(--text); outline:none; font-family:inherit;
+      transition:border-color .15s;
+    }
+    input:focus { border-color:var(--border-2); box-shadow:0 0 0 3px rgba(24,95,165,0.1); }
+    input::placeholder { color:var(--text-3); }
+    button {
+      background:transparent; border:0.5px solid var(--border-2); border-radius:var(--r-md);
+      padding:8px 14px; font-size:13px; color:var(--text); cursor:pointer;
+      display:inline-flex; align-items:center; gap:5px; font-family:inherit;
+      transition:background .12s, transform .08s; white-space:nowrap;
+    }
+    button:hover { background:var(--bg-2); }
+    button:active { transform:scale(.98); }
+    .tag-list { display:flex; flex-wrap:wrap; gap:6px; min-height:34px; }
+    .tag { display:inline-flex; align-items:center; gap:5px; font-size:13px; padding:4px 10px 4px 12px; border-radius:20px; background:var(--bg-2); border:0.5px solid var(--border); }
+    .tag-del { background:none; border:none; padding:0; font-size:16px; line-height:1; color:var(--text-3); cursor:pointer; }
+    .tag-del:hover { color:var(--text); background:none; transform:none; }
+    .run-btn { width:100%; font-size:15px; padding:12px; margin-bottom:1.5rem; border-radius:var(--r-md); justify-content:center; font-weight:500; }
+    .run-btn.loading { opacity:.6; pointer-events:none; }
+
+    /* API 키 설정 */
+    .api-hint { font-size:12px; color:var(--text-3); margin-top:6px; line-height:1.6; }
+    .api-hint a { color:var(--accent); }
+    .api-status { display:inline-flex; align-items:center; gap:5px; font-size:12px; margin-top:6px; }
+    .dot { width:7px; height:7px; border-radius:50%; background:var(--text-3); }
+    .dot.ok { background:var(--green); }
+    .dot.err { background:var(--red); }
+
+    /* 결과 */
+    .kw-section { margin-bottom:1.5rem; }
+    .kw-heading { font-size:16px; font-weight:500; margin-bottom:10px; display:flex; align-items:center; gap:7px; }
+    .kw-heading i { color:var(--text-2); font-size:15px; }
+    .products-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:10px; }
+    .product-card {
+      background:var(--bg); border:0.5px solid var(--border); border-radius:var(--r-lg);
+      overflow:hidden; text-decoration:none; color:inherit; display:flex; flex-direction:column;
+      transition:border-color .15s;
+    }
+    .product-card:hover { border-color:var(--border-2); }
+    .product-img { width:100%; aspect-ratio:1; object-fit:cover; background:var(--bg-2); display:block; }
+    .product-img.placeholder { display:flex; align-items:center; justify-content:center; color:var(--text-3); font-size:28px; }
+    .product-info { padding:10px 12px; flex:1; display:flex; flex-direction:column; gap:4px; }
+    .product-name { font-size:12px; color:var(--text-2); line-height:1.4; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+    .product-price { font-size:16px; font-weight:500; color:var(--text); margin-top:auto; padding-top:6px; }
+    .product-mall { font-size:11px; color:var(--text-3); }
+    .product-low-price { font-size:11px; color:var(--text-3); }
+
+    .loading-block { display:flex; align-items:center; gap:8px; padding:1.5rem 0; color:var(--text-2); font-size:14px; }
+    .spinner { width:16px; height:16px; border:2px solid var(--border-2); border-top-color:var(--accent); border-radius:50%; animation:spin .7s linear infinite; flex-shrink:0; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+    .error-msg { font-size:13px; color:var(--red); padding:.5rem 0; }
+    .empty { text-align:center; padding:2rem 0; color:var(--text-3); font-size:14px; }
+    .sort-row { display:flex; align-items:center; gap:8px; margin-bottom:10px; }
+    .sort-row label { font-size:13px; color:var(--text-2); }
+    select {
+      background:var(--bg-2); border:0.5px solid var(--border); border-radius:var(--r-md);
+      padding:5px 10px; font-size:13px; color:var(--text); outline:none; font-family:inherit; cursor:pointer;
+    }
+    footer { margin-top:3rem; text-align:center; font-size:12px; color:var(--text-3); }
+  </style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1><i class="ti ti-shopping-cart" style="font-size:20px;vertical-align:-2px;margin-right:6px"></i>키워드 가격 보드</h1>
+    <p class="subtitle">키워드별로 네이버 쇼핑 최저가 상품을 바로 확인하세요.</p>
+  </header>
+
+  <!-- API 키 -->
+  <div class="card">
+    <div class="label">네이버 쇼핑 API 키</div>
+    <div class="row">
+      <input type="password" id="client-id" placeholder="Client ID" style="font-family:monospace" />
+      <input type="password" id="client-secret" placeholder="Client Secret" style="font-family:monospace" />
+      <button onclick="saveApiKey()"><i class="ti ti-device-floppy"></i> 저장</button>
+    </div>
+    <div id="api-status" class="api-status"><span class="dot" id="api-dot"></span><span id="api-txt">키를 입력하고 저장하세요.</span></div>
+    <p class="api-hint">
+      키 발급: <a href="https://developers.naver.com/apps/#/register" target="_blank" rel="noopener">네이버 개발자센터</a> →
+      애플리케이션 등록 → 검색 API 선택 → Client ID/Secret 복사<br>
+      키는 브라우저에만 저장되며 외부로 전송되지 않습니다.
+    </p>
+  </div>
+
+  <!-- 키워드 -->
+  <div class="card">
+    <div class="label">키워드</div>
+    <div class="row">
+      <input type="text" id="kw-input" placeholder="예: 닌텐도 스위치 2" />
+      <button onclick="addKeyword()"><i class="ti ti-plus"></i> 추가</button>
+    </div>
+    <div class="tag-list" id="kw-list"></div>
+  </div>
+
+  <!-- 옵션 -->
+  <div class="card">
+    <div class="label">검색 옵션</div>
+    <div class="row" style="align-items:center;flex-wrap:wrap;gap:12px">
+      <label style="font-size:13px;color:var(--text-2)">정렬</label>
+      <select id="sort">
+        <option value="sim">관련도순</option>
+        <option value="asc">가격 낮은순</option>
+        <option value="dsc">가격 높은순</option>
+        <option value="date">최신순</option>
+      </select>
+      <label style="font-size:13px;color:var(--text-2)">개수</label>
+      <select id="display">
+        <option value="5">5개</option>
+        <option value="10" selected>10개</option>
+        <option value="20">20개</option>
+      </select>
+    </div>
+  </div>
+
+  <button class="run-btn" id="run-btn" onclick="runAll()">
+    <i class="ti ti-refresh"></i> 가격 검색
+  </button>
+
+  <div id="results"></div>
+
+  <footer>API 키와 키워드는 브라우저에 저장됩니다. 타인과 공유 시 키 노출에 주의하세요.</footer>
+</div>
+
+<script>
+// ── CORS 프록시 설정 ──────────────────────────────────────────
+// Cloudflare Worker URL을 아래에 입력하세요 (proxy.js 배포 후)
+// 비워두면 api.allorigins.win 공개 프록시를 사용합니다 (느릴 수 있음)
+const PROXY_BASE = 'https://wandering-credit-1d0b.sean-equality.workers.dev';
+// ─────────────────────────────────────────────────────────────
+
+const LS_ID  = 'naver-client-id';
+const LS_SEC = 'naver-client-secret';
+const LS_KW  = 'kw-board-keywords';
+
+let keywords = [];
+
+function escHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// ── API 키 ───────────────────────────────────────────────────
+function saveApiKey() {
+  const id  = document.getElementById('client-id').value.trim();
+  const sec = document.getElementById('client-secret').value.trim();
+  if (!id || !sec) { setApiStatus(false, '두 항목 모두 입력하세요.'); return; }
+  localStorage.setItem(LS_ID, id);
+  localStorage.setItem(LS_SEC, sec);
+  setApiStatus(true, '저장됨 — 검색 버튼을 눌러보세요.');
+}
+function loadApiKey() {
+  const id  = localStorage.getItem(LS_ID)  || '';
+  const sec = localStorage.getItem(LS_SEC) || '';
+  if (id)  document.getElementById('client-id').value  = id;
+  if (sec) document.getElementById('client-secret').value = sec;
+  if (id && sec) setApiStatus(true, '키 불러옴.');
+}
+function setApiStatus(ok, msg) {
+  document.getElementById('api-dot').className = 'dot ' + (ok ? 'ok' : 'err');
+  document.getElementById('api-txt').textContent = msg;
+}
+function getKeys() {
+  return {
+    id:  localStorage.getItem(LS_ID)  || document.getElementById('client-id').value.trim(),
+    sec: localStorage.getItem(LS_SEC) || document.getElementById('client-secret').value.trim(),
+  };
+}
+
+// ── 키워드 ───────────────────────────────────────────────────
+function loadKeywords() {
+  try { keywords = JSON.parse(localStorage.getItem(LS_KW) || '[]'); } catch { keywords = []; }
+  if (!keywords.length) keywords = ['닌텐도 스위치', '에어팟'];
+  renderKeywords();
+}
+function saveKeywords() { localStorage.setItem(LS_KW, JSON.stringify(keywords)); }
+function renderKeywords() {
+  document.getElementById('kw-list').innerHTML = keywords.map((k,i) =>
+    `<span class="tag">${escHtml(k)}<button class="tag-del" onclick="removeKeyword(${i})">×</button></span>`
+  ).join('');
+}
+function addKeyword() {
+  const inp = document.getElementById('kw-input');
+  const v = inp.value.trim();
+  if (v && !keywords.includes(v)) { keywords.push(v); saveKeywords(); renderKeywords(); }
+  inp.value = ''; inp.focus();
+}
+function removeKeyword(i) { keywords.splice(i,1); saveKeywords(); renderKeywords(); }
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('kw-input').addEventListener('keydown', e => { if(e.key==='Enter') addKeyword(); });
+});
+
+// ── API 호출 ─────────────────────────────────────────────────
+async function fetchNaver(keyword, sort, display, keys) {
+  const q   = encodeURIComponent(keyword);
+  const api = `https://openapi.naver.com/v1/search/shop.json?query=${q}&display=${display}&sort=${sort}`;
+
+  let url;
+  if (PROXY_BASE) {
+    // Cloudflare Worker 프록시
+    url = `${PROXY_BASE}?url=${encodeURIComponent(api)}`;
+  } else {
+    // 공개 CORS 프록시 (allorigins) — 키를 헤더로 못 보내므로 Worker 권장
+    url = `https://api.allorigins.win/get?url=${encodeURIComponent(api)}`;
+  }
+
+  const headers = PROXY_BASE
+    ? { 'X-Naver-Client-Id': keys.id, 'X-Naver-Client-Secret': keys.sec }
+    : {};
+
+  const res = await fetch(url, { headers });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const raw = await res.json();
+
+  // allorigins wraps in {contents: "..."}
+  const data = PROXY_BASE ? raw : JSON.parse(raw.contents);
+  if (data.errorCode) throw new Error(data.errorMessage || '네이버 API 오류');
+  return data.items || [];
+}
+
+// ── 결과 렌더 ────────────────────────────────────────────────
+function renderItems(items, keyword) {
+  if (!items.length) return `<p class="empty">검색 결과가 없습니다.</p>`;
+  return `<div class="products-grid">${items.map(item => {
+    const name  = item.title.replace(/<[^>]+>/g,'');
+    const price = Number(item.lprice).toLocaleString('ko-KR');
+    const img   = item.image;
+    const link  = item.link;
+    const mall  = item.mallName || '';
+    return `<a class="product-card" href="${escHtml(link)}" target="_blank" rel="noopener">
+      ${img
+        ? `<img class="product-img" src="${escHtml(img)}" alt="${escHtml(name)}" loading="lazy" />`
+        : `<div class="product-img placeholder"><i class="ti ti-photo-off"></i></div>`}
+      <div class="product-info">
+        <div class="product-name">${escHtml(name)}</div>
+        <div class="product-price">₩${price}</div>
+        <div class="product-mall">${escHtml(mall)}</div>
+      </div>
+    </a>`;
+  }).join('')}</div>`;
+}
+
+// ── 전체 실행 ────────────────────────────────────────────────
+async function runAll() {
+  const {id, sec} = getKeys();
+  if (!id || !sec) {
+    setApiStatus(false, 'API 키를 먼저 입력하고 저장하세요.');
+    document.getElementById('client-id').focus();
+    return;
+  }
+  if (!keywords.length) {
+    document.getElementById('results').innerHTML = '<p class="empty">키워드를 추가하세요.</p>';
+    return;
+  }
+
+  const sort    = document.getElementById('sort').value;
+  const display = document.getElementById('display').value;
+  const btn     = document.getElementById('run-btn');
+  btn.classList.add('loading');
+  btn.innerHTML = '<span class="spinner"></span> 검색 중…';
+
+  const res = document.getElementById('results');
+  res.innerHTML = '';
+
+  await Promise.all(keywords.map(async kw => {
+    const sec_el = document.createElement('div');
+    sec_el.className = 'kw-section';
+    sec_el.innerHTML = `<div class="kw-heading"><i class="ti ti-tag"></i>${escHtml(kw)}</div>
+      <div class="loading-block"><span class="spinner"></span>불러오는 중…</div>`;
+    res.appendChild(sec_el);
+
+    try {
+      const items = await fetchNaver(kw, sort, display, {id, sec});
+      sec_el.querySelector('.loading-block').outerHTML = renderItems(items, kw);
+    } catch(e) {
+      sec_el.querySelector('.loading-block').outerHTML =
+        `<p class="error-msg"><i class="ti ti-alert-circle"></i> 오류: ${escHtml(e.message)}</p>`;
+    }
+  }));
+
+  btn.classList.remove('loading');
+  btn.innerHTML = '<i class="ti ti-refresh"></i> 가격 검색';
+}
+
+loadApiKey();
+loadKeywords();
+</script>
+</body>
+</html>
